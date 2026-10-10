@@ -7,4 +7,5 @@ torchvision
 pillow
 numpy
 pandas
-streamlit
+imageio
+imageio-ffmpeg
