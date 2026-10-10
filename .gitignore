@@ -26,13 +26,13 @@ __pycache__/
 .vscode/
 .idea/
 
-# Output files (keep .gitkeep)
+# Output files & Revision folders (keep .gitkeep)
 outputs/*.mp4
 outputs/*.csv
 outputs/*.json
 outputs/*.jpg
 outputs/task1_kisi_sayimi*/
-outputs/vehicle_4k_crop.jpg
+outputs/task2_arac_sayimi*/
 !outputs/.gitkeep
 
 outputs/crops/*
