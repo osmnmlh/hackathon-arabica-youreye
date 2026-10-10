@@ -171,13 +171,27 @@ def run_pipeline(
     # LineZone
     line_start, line_end = sv.Point(*line_start_xy), sv.Point(*line_end_xy)
     try:
-        line_zone = sv.LineZone(start=line_start, end=line_end, triggering_anchors=[sv.Position.BOTTOM_CENTER])
+        line_zone = sv.LineZone(start=line_start, end=line_end, triggering_anchors=[sv.Position.CENTER])
     except Exception:
         line_zone = sv.LineZone(start=line_start, end=line_end)  # Fallback for different sv versions
 
     line_annotator = sv.LineZoneAnnotator(thickness=3, color=sv.Color(0, 255, 200), text_thickness=2, text_scale=0.7)
-    box_annotator = sv.BoxAnnotator(thickness=2, color_lookup=sv.ColorLookup.TRACK)
-    label_annotator = sv.LabelAnnotator(text_scale=0.5, text_thickness=1, color_lookup=sv.ColorLookup.TRACK)
+    
+    # Specific color annotators for gender
+    color_male = sv.Color(255, 120, 30)    # Blue for male (BGR->RGB order depending on sv.Color, actually sv.Color is RGB)
+    color_female = sv.Color(200, 30, 255)  # Pink for female
+    color_unk = sv.Color(128, 128, 128)    # Gray for unknown
+    
+    box_annotators = {
+        "Erkek": sv.BoxAnnotator(thickness=2, color=color_male),
+        "Kadin": sv.BoxAnnotator(thickness=2, color=color_female),
+        "Bilinmiyor": sv.BoxAnnotator(thickness=2, color=color_unk)
+    }
+    label_annotators = {
+        "Erkek": sv.LabelAnnotator(text_scale=0.5, text_thickness=1, color=color_male),
+        "Kadin": sv.LabelAnnotator(text_scale=0.5, text_thickness=1, color=color_female),
+        "Bilinmiyor": sv.LabelAnnotator(text_scale=0.5, text_thickness=1, color=color_unk)
+    }
 
     # İstatistik Takibi
     all_seen_track_ids = set()
@@ -283,11 +297,29 @@ def run_pipeline(
                 else:
                     labels.append(f"#{track_id} Analiz ediliyor... | D:{conf:.2f}")
 
-        # Görselleştirme
+        # Görselleştirme ve Kafe Sınırları
         annotated = frame.copy()
+        
+        # Kafe sınırlarını çiz
+        cv2.line(annotated, (76, 120), (6, 198), (0, 0, 255), 2)
+        cv2.line(annotated, (60, 111), (1478, 60), (0, 0, 255), 2)
+        cv2.line(annotated, (1481, 68), (1913, 430), (0, 0, 255), 2)
+
         if len(detections) > 0:
-            annotated = box_annotator.annotate(scene=annotated, detections=detections)
-            annotated = label_annotator.annotate(scene=annotated, detections=detections, labels=labels)
+            g_indices = {"Erkek": [], "Kadin": [], "Bilinmiyor": []}
+            g_labels = {"Erkek": [], "Kadin": [], "Bilinmiyor": []}
+            
+            for i, (tid, lbl) in enumerate(zip(detections.tracker_id, labels)):
+                gen = track_history[int(tid)]["gender"]
+                g_indices[gen].append(i)
+                g_labels[gen].append(lbl)
+                
+            for gen in ["Erkek", "Kadin", "Bilinmiyor"]:
+                if len(g_indices[gen]) > 0:
+                    sub_dets = detections[g_indices[gen]]
+                    annotated = box_annotators[gen].annotate(scene=annotated, detections=sub_dets)
+                    annotated = label_annotators[gen].annotate(scene=annotated, detections=sub_dets, labels=g_labels[gen])
+                    
         annotated = line_annotator.annotate(frame=annotated, line_counter=line_zone)
 
         # Cinsiyet Dağılımını Hesapla
@@ -337,13 +369,13 @@ def main():
     parser = argparse.ArgumentParser(description="Task 1: Kişi Sayımı ve Cinsiyet Sınıflandırma", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument("--video", type=str, default="data/kisi_sayimi.mp4", help="Girdi video yolu")
     parser.add_argument("--output_dir", type=str, default="outputs/task1_outputs/task1_kisi_sayimi-rev1.2", help="Çıktı klasörü")
-    parser.add_argument("--model", type=str, default="models/yolov8s.pt", help="YOLO modeli")
+    parser.add_argument("--model", type=str, default="models/yolov8m.pt", help="YOLO modeli")
     parser.add_argument("--max_frames", type=int, default=None, help="Maksimum işlenecek kare")
     parser.add_argument("--conf", type=float, default=0.15, help="Tespit güven eşiği")
-    parser.add_argument("--iou", type=float, default=0.5, help="NMS IoU eşiği")
+    parser.add_argument("--iou", type=float, default=0.4, help="NMS IoU eşiği")
     parser.add_argument("--device", type=str, default="cuda" if torch.cuda.is_available() else "cpu", help="Cihaz (cuda/cpu)")
-    parser.add_argument("--line_start", type=int, nargs=2, default=[1097, 200], help="Çizgi başı (x y)")
-    parser.add_argument("--line_end", type=int, nargs=2, default=[800, 220], help="Çizgi sonu (x y)")
+    parser.add_argument("--line_start", type=int, nargs=2, default=[1100, 180], help="Çizgi başı (x y)")
+    parser.add_argument("--line_end", type=int, nargs=2, default=[600, 180], help="Çizgi sonu (x y)")
     parser.add_argument("--no_gender", action="store_true", help="Cinsiyeti devre dışı bırak")
     parser.add_argument("--no_video", action="store_true", help="Videoyu kaydetme")
     parser.add_argument("--show", action="store_true", help="Önizlemeyi göster")
