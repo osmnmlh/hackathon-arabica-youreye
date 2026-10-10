@@ -83,7 +83,14 @@ python task2_vehicles.py --line "150,800,1750,800" --flip
 
 ---
 
-## ⚠️ Yasal ve Teknik Çekince (Disclaimer)
+## ⚠️ Yasal ve Teknik Çekince (Disclaimer) & Teknik Not
 
 > [!WARNING]
-> **Önemli Not:** Hackathon kuralları ve etik yapay zeka standartları gereği; **bu model çıktısı yalnızca tahmindir, kesin kimlik doğrulama niteliği taşımaz**. Cinsiyet ve demografik analiz tahminleri istatistiksel çıkarımlara dayanmaktadır.
+> **Teknik Not:** Cinsiyet: görsel model tahmini, hata payı içerir.
+> Hackathon kuralları ve etik yapay zeka standartları gereği; **bu model çıktısı yalnızca tahmindir, kesin kimlik doğrulama niteliği taşımaz**. Cinsiyet ve demografik analiz tahminleri istatistiksel çıkarımlara (OpenAI CLIP Zero-Shot) dayanmaktadır.
+
+### 📌 Bilinen Kısıtlar ve Teknik Notlar (Task 1)
+1. **Koordinatlar & Kamera Açısı:** Kafe sınır poligonu ve giriş-çıkış sayım çizgisi mevcut videonun kamera perspektifine göre kalibre edilmiştir.
+2. **Giriş-Çıkış Doğrulaması:** Kapıdan giriş/çıkış yapan kişiler manuel olarak gözle incelenmiş; yan yana ve arka arkaya geçişler için çizgi genişliği (`X: 725 - 1060`) ve güven eşiği (`conf=0.12`) optimize edilmiştir.
+3. **Robust Takip & Çökme Koruması:** Boş sahneler ve geçici ID'siz kutular için filtreleme eklenmiş; olası kesintilere karşı `try/finally` bloğu ile veri bütünlüğü güvenceye alınmıştır.
+

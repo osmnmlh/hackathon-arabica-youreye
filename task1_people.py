@@ -27,26 +27,25 @@ def enhance_frame(frame: np.ndarray) -> np.ndarray:
 class GenderEstimator:
     def __init__(self, device: str = "cpu"):
         self.device = device
-        self.model = None
-        self.processor = None
         self.male_prompts = [
             "a photo of a male pedestrian",
-            "a man",
+            "a photo of a man",
             "a man with short hair",
             "a photo of a man's face and upper body",
             "a male body shape",
-            "a guy walking",
-            "a male customer",
+            "a man sitting at a table with a laptop",
+            "a man seen from behind with short hair",
+            "a male customer sitting down",
         ]
         self.female_prompts = [
             "a photo of a female pedestrian",
-            "a woman",
+            "a photo of a woman",
             "a woman with long hair",
             "a photo of a woman's face and upper body",
             "a female body shape",
-            "a woman wearing a headscarf or hijab",
-            "a lady walking",
-            "a female customer",
+            "a woman sitting at a table with long blonde hair",
+            "a woman seen from behind with long hair",
+            "a female customer sitting down",
         ]
         self.prompts = self.male_prompts + self.female_prompts
         self.text_inputs = None
@@ -77,8 +76,8 @@ class GenderEstimator:
             return "Bilinmiyor", 0.5
             
         h, w = crop_bgr.shape[:2]
-        # Çok küçük crop'larda analiz yapma
-        if h < 80 or w < 40:
+        # Çok küçük parazit crop'larda analiz yapma (Uzaktaki oturanları kaçırmamak için eşik 35x20)
+        if h < 35 or w < 20:
             return "Bilinmiyor", 0.5
 
         try:
@@ -145,9 +144,9 @@ def draw_hud(
 # ---------------------------------------------------------------------------
 def run_pipeline(
     video_path: str, output_dir: str, model_path: str,
-    max_frames: Optional[int] = None, conf_threshold: float = 0.18,
+    max_frames: Optional[int] = None, conf_threshold: float = 0.12,
     iou_threshold: float = 0.45, device: str = "cpu",
-    line_start_xy: Tuple[int, int] = (1120, 185), line_end_xy: Tuple[int, int] = (760, 185),
+    line_start_xy: Tuple[int, int] = (1060, 185), line_end_xy: Tuple[int, int] = (725, 185),
     enable_gender: bool = True, save_video: bool = True, show_window: bool = False,
 ):
     print("=" * 70)
@@ -189,7 +188,7 @@ def run_pipeline(
     ], dtype=np.int32)
     cafe_zone = sv.PolygonZone(polygon=cafe_polygon, triggering_anchors=[sv.Position.CENTER])
 
-    # Genişletilmiş Kapı Hattı (Giriş: IN, Çıkış: OUT)
+    # İnce Ayarlı Kapı Hattı (Sağda oturan adama değmez: 1060, soldan geçenleri kaçırmaz: 725)
     line_start, line_end = sv.Point(*line_start_xy), sv.Point(*line_end_xy)
     try:
         line_zone = sv.LineZone(start=line_start, end=line_end, triggering_anchors=[sv.Position.CENTER])
@@ -231,164 +230,172 @@ def run_pipeline(
     use_half = (device != "cpu")
     print(f"[INFO] Video işleniyor (Cihaz: {device}, FP16: {use_half})...")
     
-    while cap.isOpened():
-        if max_frames and frame_idx >= max_frames:
-            break
-
-        ret, frame = cap.read()
-        if not ret:
-            break
-        frame_idx += 1
-
-        enhanced_frame = enhance_frame(frame)
-
-        # YOLO FP16 Inference (960px optimize çözünürlük)
-        try:
-            results = model.track(
-                enhanced_frame, persist=True, tracker="bytetrack.yaml",
-                conf=conf_threshold, iou=iou_threshold, classes=[0],
-                device=device, verbose=False, imgsz=960, half=use_half
-            )[0]
-        except Exception:
-            results = model.track(
-                enhanced_frame, persist=True, tracker="bytetrack.yaml",
-                conf=conf_threshold, iou=iou_threshold, classes=[0],
-                device=device, verbose=False, imgsz=960
-            )[0]
-
-        detections = sv.Detections.from_ultralytics(results)
-        if detections.tracker_id is not None:
-            valid = detections.tracker_id != None
-            detections = detections[valid]
-            # Kafe dışındaki insanları filtrele (Dışarıdaki yayalar ve otopark elenir)
-            if len(detections) > 0:
-                in_cafe_mask = cafe_zone.trigger(detections)
-                detections = detections[in_cafe_mask]
-            
-        has_tracks = len(detections) > 0
-
-        # Sayım Tetiklemesi (LineZone)
-        if has_tracks:
-            try:
-                line_zone.trigger(detections)
-            except Exception:
-                pass
-
-        labels = []
-        active_count = len(detections) if has_tracks else 0
-
-        if has_tracks:
-            for i, track_id in enumerate(detections.tracker_id):
-                track_id = int(track_id)
-                all_seen_track_ids.add(track_id)
-
-                xyxy = detections.xyxy[i].astype(int)
-                conf = float(detections.confidence[i])
-                x1, y1, x2, y2 = max(0, xyxy[0]), max(0, xyxy[1]), min(width, xyxy[2]), min(height, xyxy[3])
-                crop = frame[y1:y2, x1:x2]
-
-                if track_id not in track_history:
-                    track_history[track_id] = {
-                        "track_id": track_id, "first_frame": frame_idx, "last_frame": frame_idx,
-                        "gender": "Bilinmiyor", "gender_conf": 0.0, "det_conf": conf
-                    }
-                    gender_history[track_id] = collections.deque(maxlen=10)
-                else:
-                    track_history[track_id]["last_frame"] = frame_idx
-                    track_history[track_id]["det_conf"] = max(track_history[track_id]["det_conf"], conf)
-
-                current_info = track_history[track_id]
-
-                # Akıllı CLIP Cinsiyet Değerlendirmesi:
-                # Yeni track'ler için sık (her 10 karede bir), oturmuş kararlı track'ler için seyrek (40 karede bir)
-                history_len = len(gender_history[track_id])
-                need_eval = False
-                if history_len == 0:
-                    need_eval = True
-                elif history_len < 5 and (frame_idx % gender_eval_interval == 0):
-                    need_eval = True
-                elif history_len >= 5 and (frame_idx % 40 == 0):
-                    need_eval = True
-
-                if gender_estimator and need_eval:
-                    h_c, w_c = crop.shape[:2]
-                    # Üst gövdeye odaklan (Top 70%)
-                    upper_body = crop[:int(h_c * 0.70), :] if h_c > 30 else crop
-                    pred, g_conf = gender_estimator.predict(upper_body)
-                    if pred != "Bilinmiyor":
-                        gender_history[track_id].append((pred, g_conf))
-                
-                # Çoğunluk oylaması (Majority Voting)
-                if len(gender_history[track_id]) > 0:
-                    votes = [g[0] for g in gender_history[track_id]]
-                    confs = [g[1] for g in gender_history[track_id]]
-                    
-                    male_votes = votes.count("Erkek")
-                    female_votes = votes.count("Kadin")
-                    
-                    if male_votes > female_votes:
-                        current_info["gender"] = "Erkek"
-                        current_info["gender_conf"] = float(np.mean([confs[j] for j, v in enumerate(votes) if v == "Erkek"]))
-                    else:
-                        current_info["gender"] = "Kadin"
-                        current_info["gender_conf"] = float(np.mean([confs[j] for j, v in enumerate(votes) if v == "Kadin"]))
-
-                g_str, g_conf = current_info["gender"], current_info["gender_conf"]
-                if g_str != "Bilinmiyor":
-                    labels.append(f"#{track_id} {g_str} ({g_conf:.0%}) | D:{conf:.2f}")
-                else:
-                    labels.append(f"#{track_id} Analiz ediliyor... | D:{conf:.2f}")
-
-        # Görselleştirme ve Kafe Sınırları
-        annotated = frame.copy()
-        
-        # Kafe sınırlarını ince şık kırmızı çizgiyle çiz
-        cv2.line(annotated, (76, 120), (6, 198), (0, 0, 240), 2)
-        cv2.line(annotated, (76, 120), (1478, 60), (0, 0, 240), 2)
-        cv2.line(annotated, (1481, 68), (1913, 430), (0, 0, 240), 2)
-        cv2.putText(annotated, "Kafe Siniri", (140, 100), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 240), 1, cv2.LINE_AA)
-
-        if len(detections) > 0:
-            g_indices = {"Erkek": [], "Kadin": [], "Bilinmiyor": []}
-            g_labels = {"Erkek": [], "Kadin": [], "Bilinmiyor": []}
-            
-            for i, (tid, lbl) in enumerate(zip(detections.tracker_id, labels)):
-                gen = track_history[int(tid)]["gender"]
-                g_indices[gen].append(i)
-                g_labels[gen].append(lbl)
-                
-            for gen in ["Erkek", "Kadin", "Bilinmiyor"]:
-                if len(g_indices[gen]) > 0:
-                    sub_dets = detections[g_indices[gen]]
-                    annotated = box_annotators[gen].annotate(scene=annotated, detections=sub_dets)
-                    annotated = label_annotators[gen].annotate(scene=annotated, detections=sub_dets, labels=g_labels[gen])
-                    
-        annotated = line_annotator.annotate(frame=annotated, line_counter=line_zone)
-
-        # Cinsiyet Dağılımını Hesapla
-        male_count = sum(1 for v in track_history.values() if v["gender"] == "Erkek")
-        female_count = sum(1 for v in track_history.values() if v["gender"] == "Kadin")
-
-        if frame_idx % 15 == 0:
-            now = time.time()
-            calc_fps = 15.0 / max(1e-4, (now - last_fps_time))
-            last_fps_time = now
-
-        draw_hud(annotated, active_count, len(all_seen_track_ids), line_zone.in_count, line_zone.out_count, male_count, female_count, calc_fps, frame_idx, effective_total)
-
-        if writer:
-            writer.write(annotated)
-
-        if show_window:
-            cv2.imshow("Task 1", annotated)
-            if cv2.waitKey(1) & 0xFF == ord("q"):
+    try:
+        while cap.isOpened():
+            if max_frames and frame_idx >= max_frames:
                 break
 
-    cap.release()
-    if writer:
-        writer.release()
-    if show_window:
-        cv2.destroyAllWindows()
+            ret, frame = cap.read()
+            if not ret:
+                break
+            frame_idx += 1
+
+            enhanced_frame = enhance_frame(frame)
+
+            # YOLO FP16 Inference (960px optimize çözünürlük)
+            try:
+                results = model.track(
+                    enhanced_frame, persist=True, tracker="bytetrack.yaml",
+                    conf=conf_threshold, iou=iou_threshold, classes=[0],
+                    device=device, verbose=False, imgsz=960, half=use_half
+                )[0]
+            except Exception:
+                results = model.track(
+                    enhanced_frame, persist=True, tracker="bytetrack.yaml",
+                    conf=conf_threshold, iou=iou_threshold, classes=[0],
+                    device=device, verbose=False, imgsz=960
+                )[0]
+
+            # Sağlam tespit filtreleme (Çökme riskini önleyen güvenli kontrol)
+            detections = sv.Detections.from_ultralytics(results)
+            if detections.tracker_id is None:
+                detections = sv.Detections.empty()
+            else:
+                detections = detections[detections.tracker_id != None]
+                if len(detections) > 0:
+                    detections = detections[cafe_zone.trigger(detections)]
+                
+            has_tracks = len(detections) > 0
+
+            # Sayım Tetiklemesi (LineZone)
+            if has_tracks:
+                try:
+                    line_zone.trigger(detections)
+                except Exception:
+                    pass
+
+            labels = []
+            active_count = len(detections) if has_tracks else 0
+
+            if has_tracks:
+                for i, track_id in enumerate(detections.tracker_id):
+                    track_id = int(track_id)
+                    all_seen_track_ids.add(track_id)
+
+                    xyxy = detections.xyxy[i].astype(int)
+                    conf = float(detections.confidence[i])
+                    x1, y1, x2, y2 = max(0, xyxy[0]), max(0, xyxy[1]), min(width, xyxy[2]), min(height, xyxy[3])
+                    crop = frame[y1:y2, x1:x2]
+
+                    if track_id not in track_history:
+                        track_history[track_id] = {
+                            "track_id": track_id, "first_frame": frame_idx, "last_frame": frame_idx,
+                            "gender": "Bilinmiyor", "gender_conf": 0.0, "det_conf": conf
+                        }
+                        gender_history[track_id] = collections.deque(maxlen=10)
+                    else:
+                        track_history[track_id]["last_frame"] = frame_idx
+                        track_history[track_id]["det_conf"] = max(track_history[track_id]["det_conf"], conf)
+
+                    current_info = track_history[track_id]
+
+                    # Akıllı CLIP Cinsiyet Değerlendirmesi:
+                    # Yeni track'ler için sık (her 10 karede bir), oturmuş kararlı track'ler için seyrek (40 karede bir)
+                    history_len = len(gender_history[track_id])
+                    need_eval = False
+                    if history_len == 0:
+                        need_eval = True
+                    elif history_len < 5 and (frame_idx % gender_eval_interval == 0):
+                        need_eval = True
+                    elif history_len >= 5 and (frame_idx % 40 == 0):
+                        need_eval = True
+
+                    if gender_estimator and need_eval:
+                        h_c, w_c = crop.shape[:2]
+                        # Üst gövdeye odaklan (Top 70%)
+                        upper_body = crop[:int(h_c * 0.70), :] if h_c > 30 else crop
+                        pred, g_conf = gender_estimator.predict(upper_body)
+                        if pred != "Bilinmiyor":
+                            gender_history[track_id].append((pred, g_conf))
+                    
+                    # Çoğunluk oylaması (Majority Voting)
+                    if len(gender_history[track_id]) > 0:
+                        votes = [g[0] for g in gender_history[track_id]]
+                        confs = [g[1] for g in gender_history[track_id]]
+                        
+                        male_votes = votes.count("Erkek")
+                        female_votes = votes.count("Kadin")
+                        
+                        if male_votes > female_votes:
+                            current_info["gender"] = "Erkek"
+                            current_info["gender_conf"] = float(np.mean([confs[j] for j, v in enumerate(votes) if v == "Erkek"]))
+                        else:
+                            current_info["gender"] = "Kadin"
+                            current_info["gender_conf"] = float(np.mean([confs[j] for j, v in enumerate(votes) if v == "Kadin"]))
+
+                    g_str, g_conf = current_info["gender"], current_info["gender_conf"]
+                    if g_str != "Bilinmiyor":
+                        labels.append(f"#{track_id} {g_str} ({g_conf:.0%}) | D:{conf:.2f}")
+                    else:
+                        labels.append(f"#{track_id} Analiz ediliyor... | D:{conf:.2f}")
+
+            # Görselleştirme ve Kafe Sınırları
+            annotated = frame.copy()
+            
+            # Kafe sınırlarını ince şık kırmızı çizgiyle çiz
+            cv2.line(annotated, (76, 120), (6, 198), (0, 0, 240), 2)
+            cv2.line(annotated, (76, 120), (1478, 60), (0, 0, 240), 2)
+            cv2.line(annotated, (1481, 68), (1913, 430), (0, 0, 240), 2)
+            cv2.putText(annotated, "Kafe Siniri", (140, 100), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 240), 1, cv2.LINE_AA)
+
+            if len(detections) > 0:
+                g_indices = {"Erkek": [], "Kadin": [], "Bilinmiyor": []}
+                g_labels = {"Erkek": [], "Kadin": [], "Bilinmiyor": []}
+                
+                for i, (tid, lbl) in enumerate(zip(detections.tracker_id, labels)):
+                    gen = track_history[int(tid)]["gender"]
+                    g_indices[gen].append(i)
+                    g_labels[gen].append(lbl)
+                    
+                for gen in ["Erkek", "Kadin", "Bilinmiyor"]:
+                    if len(g_indices[gen]) > 0:
+                        sub_dets = detections[g_indices[gen]]
+                        annotated = box_annotators[gen].annotate(scene=annotated, detections=sub_dets)
+                        annotated = label_annotators[gen].annotate(scene=annotated, detections=sub_dets, labels=g_labels[gen])
+                        
+            annotated = line_annotator.annotate(frame=annotated, line_counter=line_zone)
+
+            # Cinsiyet Dağılımını Hesapla
+            male_count = sum(1 for v in track_history.values() if v["gender"] == "Erkek")
+            female_count = sum(1 for v in track_history.values() if v["gender"] == "Kadin")
+
+            if frame_idx % 15 == 0:
+                now = time.time()
+                calc_fps = 15.0 / max(1e-4, (now - last_fps_time))
+                last_fps_time = now
+
+            draw_hud(annotated, active_count, len(all_seen_track_ids), line_zone.in_count, line_zone.out_count, male_count, female_count, calc_fps, frame_idx, effective_total)
+
+            # PDF Teknik Not Maddesi: Cinsiyet tahmini yasal/teknik uyarı filigranı
+            txt = "Cinsiyet: gorsel model tahmini, hata payi icerir"
+            cv2.putText(annotated, txt, (20, height - 20), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 0), 4, cv2.LINE_AA)
+            cv2.putText(annotated, txt, (20, height - 20), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 1, cv2.LINE_AA)
+
+            if writer:
+                writer.write(annotated)
+
+            if show_window:
+                cv2.imshow("Task 1", annotated)
+                if cv2.waitKey(1) & 0xFF == ord("q"):
+                    break
+    except KeyboardInterrupt:
+        print("\n[INFO] İşlem kullanıcı tarafından durduruldu.")
+    finally:
+        cap.release()
+        if writer:
+            writer.release()
+        if show_window:
+            cv2.destroyAllWindows()
 
     total_time = time.time() - start_time
     print("-" * 70)
@@ -414,11 +421,11 @@ def main():
     parser.add_argument("--output_dir", type=str, default="outputs/task1_outputs/task1_kisi_sayimi-rev1.2", help="Çıktı klasörü")
     parser.add_argument("--model", type=str, default="models/yolov8m.pt", help="YOLO modeli")
     parser.add_argument("--max_frames", type=int, default=None, help="Maksimum işlenecek kare")
-    parser.add_argument("--conf", type=float, default=0.18, help="Tespit güven eşiği")
+    parser.add_argument("--conf", type=float, default=0.12, help="Tespit güven eşiği")
     parser.add_argument("--iou", type=float, default=0.45, help="NMS IoU eşiği")
     parser.add_argument("--device", type=str, default="cuda" if torch.cuda.is_available() else "cpu", help="Cihaz (cuda/cpu)")
-    parser.add_argument("--line_start", type=int, nargs=2, default=[1120, 185], help="Çizgi başı (x y)")
-    parser.add_argument("--line_end", type=int, nargs=2, default=[760, 185], help="Çizgi sonu (x y)")
+    parser.add_argument("--line_start", type=int, nargs=2, default=[1060, 185], help="Çizgi başı (x y)")
+    parser.add_argument("--line_end", type=int, nargs=2, default=[725, 185], help="Çizgi sonu (x y)")
     parser.add_argument("--no_gender", action="store_true", help="Cinsiyeti devre dışı bırak")
     parser.add_argument("--no_video", action="store_true", help="Videoyu kaydetme")
     parser.add_argument("--show", action="store_true", help="Önizlemeyi göster")
