@@ -1,7 +1,7 @@
 # Data directory
 data/
 
-# Video & Media files
+# Video & Media files (default ignore)
 *.mp4
 *.avi
 *.mov
@@ -26,14 +26,29 @@ __pycache__/
 .vscode/
 .idea/
 
-# Output files & Revision folders (keep .gitkeep)
+# Outputs genel kural & ara denemeler
 outputs/*.mp4
 outputs/*.csv
 outputs/*.json
 outputs/*.jpg
+outputs/task1_outputs/
 outputs/task1_kisi_sayimi*/
 outputs/task2_arac_sayimi*/
+outputs/task2_outputs/task2_arac_sayimi-rev1.0/
 !outputs/.gitkeep
 
+# Task 1: Nihai Çıktılar (Final)
+!outputs/task1_output_final/
+!outputs/task1_output_final/*
+!outputs/task1_output_final/*.mp4
+!outputs/task1_output_final/*.csv
+
+# Task 2: Nihai Çıktılar (rev1.1)
+!outputs/task2_outputs/
+!outputs/task2_outputs/task2_arac_sayimi-rev1.1/
+!outputs/task2_outputs/task2_arac_sayimi-rev1.1/*
+outputs/task2_outputs/task2_arac_sayimi-rev1.1/*.mp4
+
+# Geçici crop dosyaları
 outputs/crops/*
 !outputs/crops/.gitkeep
