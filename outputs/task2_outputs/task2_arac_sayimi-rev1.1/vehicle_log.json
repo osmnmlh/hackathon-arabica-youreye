@@ -1,0 +1,80 @@
+[
+  {
+    "arac_id": 1,
+    "arac_tipi": "Otomobil",
+    "arac_guven": 0.89,
+    "plaka": "PLAKA YOK",
+    "plaka_turu": "UNKNOWN",
+    "plaka_guven": 0.0,
+    "yon": "Cikis",
+    "video_saniyesi": 0.57,
+    "kare_no": 17,
+    "plaka_gorsel": "",
+    "arac_gorsel": "veh_1.jpg"
+  },
+  {
+    "arac_id": 4,
+    "arac_tipi": "Otomobil",
+    "arac_guven": 0.77,
+    "plaka": "UEUSD",
+    "plaka_turu": "RAW",
+    "plaka_guven": 0.07,
+    "yon": "Cikis",
+    "video_saniyesi": 1.43,
+    "kare_no": 43,
+    "plaka_gorsel": "plate_4.jpg",
+    "arac_gorsel": "veh_4.jpg"
+  },
+  {
+    "arac_id": 10,
+    "arac_tipi": "Otomobil",
+    "arac_guven": 0.78,
+    "plaka": "97705",
+    "plaka_turu": "RAW",
+    "plaka_guven": 0.01,
+    "yon": "Cikis",
+    "video_saniyesi": 2.03,
+    "kare_no": 61,
+    "plaka_gorsel": "plate_10.jpg",
+    "arac_gorsel": "veh_10.jpg"
+  },
+  {
+    "arac_id": 11,
+    "arac_tipi": "Otomobil",
+    "arac_guven": 0.76,
+    "plaka": "PLAKA YOK",
+    "plaka_turu": "UNKNOWN",
+    "plaka_guven": 0.0,
+    "yon": "Cikis",
+    "video_saniyesi": 2.13,
+    "kare_no": 64,
+    "plaka_gorsel": "",
+    "arac_gorsel": "veh_11.jpg"
+  },
+  {
+    "arac_id": 5,
+    "arac_tipi": "Otomobil",
+    "arac_guven": 0.78,
+    "plaka": "LDJ 1ZZU",
+    "plaka_turu": "PL",
+    "plaka_guven": 0.33,
+    "yon": "Cikis",
+    "video_saniyesi": 2.3,
+    "kare_no": 69,
+    "plaka_gorsel": "plate_5.jpg",
+    "arac_gorsel": "veh_5.jpg"
+  },
+  {
+    "arac_id": 8,
+    "arac_tipi": "Otomobil",
+    "arac_guven": 0.74,
+    "plaka": "PLAKA YOK",
+    "plaka_turu": "UNKNOWN",
+    "plaka_guven": 0.0,
+    "yon": "Cikis",
+    "video_saniyesi": 3.4,
+    "kare_no": 102,
+    "plaka_gorsel": "",
+    "arac_gorsel": "veh_8.jpg"
+  }
+]

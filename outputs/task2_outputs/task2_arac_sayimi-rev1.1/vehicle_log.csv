@@ -1,0 +1,7 @@
+﻿arac_id,arac_tipi,arac_guven,plaka,plaka_turu,plaka_guven,yon,video_saniyesi,kare_no,plaka_gorsel,arac_gorsel
+1,Otomobil,0.89,PLAKA YOK,UNKNOWN,0.0,Cikis,0.57,17,,veh_1.jpg
+4,Otomobil,0.77,UEUSD,RAW,0.07,Cikis,1.43,43,plate_4.jpg,veh_4.jpg
+10,Otomobil,0.78,97705,RAW,0.01,Cikis,2.03,61,plate_10.jpg,veh_10.jpg
+11,Otomobil,0.76,PLAKA YOK,UNKNOWN,0.0,Cikis,2.13,64,,veh_11.jpg
+5,Otomobil,0.78,LDJ 1ZZU,PL,0.33,Cikis,2.3,69,plate_5.jpg,veh_5.jpg
+8,Otomobil,0.74,PLAKA YOK,UNKNOWN,0.0,Cikis,3.4,102,,veh_8.jpg

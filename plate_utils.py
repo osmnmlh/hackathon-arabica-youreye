@@ -246,14 +246,12 @@ class PlateVoteTracker:
             voted_clean = "".join(voted_chars)
             # Polonya formatına yeniden uygunlaştır ve formatla
             fixed = fix_pl(voted_clean)
+            avg_conf = sum(c for _, c in group) / len(group)
             if fixed:
                 final_text = format_pl_display(fixed)
+                return final_text, avg_conf, "PL"
             else:
-                final_text = format_pl_display(voted_clean)
-
-            # Nihai güven = gruptaki okumaların ortalama ham conf değeri
-            avg_conf = sum(c for _, c in group) / len(group)
-            return final_text, avg_conf, "PL"
+                return voted_clean, avg_conf, "RAW"
 
         # PL okuma yoksa en yüksek conf'lu RAW okuma
         raw_records = [(t, c) for t, c, pt, _ in records if pt == "RAW"]

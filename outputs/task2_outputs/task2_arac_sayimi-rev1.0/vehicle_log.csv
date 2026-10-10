@@ -1,0 +1,26 @@
+﻿arac_id,arac_tipi,plaka,plaka_turu,plaka_guven,yon,video_saniyesi,kare_no,plaka_gorsel,arac_gorsel
+1,Otomobil,PLAKA YOK,UNKNOWN,0.0,Cikis,0.53,16,,veh_id1.jpg
+4,Otomobil,UEUSD,RAW,0.07,Cikis,1.4,42,plate_id4_UEUSD.jpg,veh_id4.jpg
+10,Otomobil,6M05,RAW,0.03,Cikis,2.0,60,plate_id10_6M05.jpg,veh_id10.jpg
+11,Otomobil,PLAKA YOK,UNKNOWN,0.0,Cikis,2.1,63,,veh_id11.jpg
+5,Otomobil,LDJ 1ZZU,PL,0.33,Cikis,2.13,64,plate_id5_LDJ_1ZZU.jpg,veh_id5.jpg
+8,Otomobil,PLAKA YOK,UNKNOWN,0.0,Cikis,3.4,102,,veh_id8.jpg
+6,Otomobil,HA 24SA,PL,0.3,Cikis,4.5,135,plate_id6_HA_24SA.jpg,veh_id6.jpg
+9,Otomobil,MMWR,RAW,0.21,Cikis,5.03,151,plate_id9_MMWR.jpg,veh_id9.jpg
+12,Otomobil,IJUS,RAW,0.11,Cikis,6.6,198,plate_id12_IJUS.jpg,veh_id12.jpg
+17,Otomobil,DITT,RAW,0.01,Cikis,7.3,219,plate_id17_DITT.jpg,veh_id17.jpg
+18,Otomobil,M9ND,RAW,0.03,Cikis,8.37,251,plate_id18_M9ND.jpg,veh_id18.jpg
+20,Otomobil,13LL,RAW,0.04,Cikis,9.17,275,plate_id20_13LL.jpg,veh_id20.jpg
+14,Otomobil,MI 05JQ,PL,0.03,Cikis,9.4,282,plate_id14_MI_05JQ.jpg,veh_id14.jpg
+16,Otobüs,PLAKA YOK,UNKNOWN,0.0,Cikis,9.57,287,,veh_id16.jpg
+19,Otomobil,KLU 2SYI,PL,0.1,Cikis,11.17,335,plate_id19_KLU_2SYI.jpg,veh_id19.jpg
+21,Otomobil,MENAR,RAW,0.04,Cikis,11.27,338,plate_id21_MENAR.jpg,veh_id21.jpg
+23,Otomobil,PLAKA YOK,UNKNOWN,0.0,Cikis,11.33,340,,veh_id23.jpg
+26,Otomobil,NAIM,RAW,0.14,Cikis,12.13,364,plate_id26_NAIM.jpg,veh_id26.jpg
+31,Otomobil,PLAKA YOK,UNKNOWN,0.0,Cikis,12.57,377,,veh_id31.jpg
+22,Otomobil,ICJUU,RAW,0.14,Cikis,12.9,387,plate_id22_ICJUU.jpg,veh_id22.jpg
+28,Otomobil,7647,RAW,0.28,Cikis,13.7,411,plate_id28_7647.jpg,veh_id28.jpg
+30,Otomobil,PLAKA YOK,UNKNOWN,0.0,Cikis,15.33,460,,veh_id30.jpg
+36,Otomobil,TOF0,RAW,0.01,Cikis,17.83,535,plate_id36_TOF0.jpg,veh_id36.jpg
+38,Kamyon,PLAKA YOK,UNKNOWN,0.0,Cikis,19.83,595,,veh_id38.jpg
+35,Otomobil,PLAKA YOK,UNKNOWN,0.0,Cikis,19.9,597,,veh_id35.jpg
