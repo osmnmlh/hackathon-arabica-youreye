@@ -35,12 +35,24 @@ class GenderEstimator:
         self.device = device
         self.model = None
         self.processor = None
-        self.prompts = [
+        self.male_prompts = [
+            "a photo of a man",
             "a photo of a man walking",
+            "a photo of a man with his back turned",
+            "a photo of a bald man",
+            "a photo of a man sitting and looking at a computer",
+            "a photo of a man standing sideways from behind",
+            "a photo of a man with short hair",
+            "a photo of a man with broad shoulders",
+        ]
+        self.female_prompts = [
+            "a photo of a woman",
             "a photo of a woman walking",
+            "a photo of a woman with long hair",
             "a photo of a woman wearing a headscarf",
             "a photo of a woman wearing a hijab",
         ]
+        self.prompts = self.male_prompts + self.female_prompts
         self.text_inputs = None
         self.is_ready = False
         self._load_model()
@@ -86,8 +98,9 @@ class GenderEstimator:
                 )
                 probs = outputs.logits_per_image.softmax(dim=1)[0].cpu().numpy()
 
-            male_prob = float(probs[0])
-            female_prob = float(probs[1] + probs[2] + probs[3])
+            num_male = len(self.male_prompts)
+            male_prob = float(sum(probs[:num_male]))
+            female_prob = float(sum(probs[num_male:]))
 
             if male_prob > female_prob:
                 return "Erkek", male_prob
@@ -138,7 +151,7 @@ def run_pipeline(
     video_path: str, output_dir: str, model_path: str,
     max_frames: Optional[int] = None, conf_threshold: float = 0.15,
     iou_threshold: float = 0.5, device: str = "cpu",
-    line_start_xy: Tuple[int, int] = (1097, 200), line_end_xy: Tuple[int, int] = (800, 220),
+    line_start_xy: Tuple[int, int] = (828, 185), line_end_xy: Tuple[int, int] = (1060, 185),
     enable_gender: bool = True, save_video: bool = True, show_window: bool = False,
 ):
     print("=" * 70)
@@ -374,8 +387,8 @@ def main():
     parser.add_argument("--conf", type=float, default=0.15, help="Tespit güven eşiği")
     parser.add_argument("--iou", type=float, default=0.4, help="NMS IoU eşiği")
     parser.add_argument("--device", type=str, default="cuda" if torch.cuda.is_available() else "cpu", help="Cihaz (cuda/cpu)")
-    parser.add_argument("--line_start", type=int, nargs=2, default=[1100, 180], help="Çizgi başı (x y)")
-    parser.add_argument("--line_end", type=int, nargs=2, default=[600, 180], help="Çizgi sonu (x y)")
+    parser.add_argument("--line_start", type=int, nargs=2, default=[828, 185], help="Çizgi başı (x y)")
+    parser.add_argument("--line_end", type=int, nargs=2, default=[1060, 185], help="Çizgi sonu (x y)")
     parser.add_argument("--no_gender", action="store_true", help="Cinsiyeti devre dışı bırak")
     parser.add_argument("--no_video", action="store_true", help="Videoyu kaydetme")
     parser.add_argument("--show", action="store_true", help="Önizlemeyi göster")
