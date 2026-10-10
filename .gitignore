@@ -30,6 +30,9 @@ __pycache__/
 outputs/*.mp4
 outputs/*.csv
 outputs/*.json
+outputs/*.jpg
+outputs/task1_kisi_sayimi*/
+outputs/vehicle_4k_crop.jpg
 !outputs/.gitkeep
 
 outputs/crops/*

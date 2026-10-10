@@ -1,75 +1,72 @@
 # Arabica x Youreye Hackathon 2026
 
-## 👥 Takım / Katılımcı Bilgileri
-- **Takım Adı:** [Takım Adı Buraya]
-- **Takım Üyeleri:**
-  - Üye 1: [Ad Soyad - Rol / E-posta / GitHub]
-  - Üye 2: [Ad Soyad - Rol / E-posta / GitHub]
+## 👥 Katılımcı Bilgisi
+- **Geliştirici:** Osman Melih Gümüş
 
 ---
 
 ## 📌 Proje Genel Bakışı
-Bu proje, Arabica x Youreye Hackathon 2026 kapsamında geliştirilen görüntü işleme, nesne tespiti, takip, plaka tanıma ve analiz platformudur.
+Bu proje, Arabica x Youreye Hackathon 2026 kapsamında geliştirilen nesne tespiti, nesne takibi, cinsiyet tahmini, plaka tespiti/OCR ve canlı analiz platformudur.
 
-### Görev Dağılımı ve Mimarisi
-1. **Görev 1 (Task 1): Kişi Tespiti, Sayım ve Cinsiyet Tahmini** (`task1_people.py`)
-   - Kişi tespiti (Object Detection & Tracking)
-   - Giriş / Çıkış ve bölge bazlı kişi sayımı
-   - Demografik/Cinsiyet analizi
+### 🎯 Proje Milestoneları & Durumu
 
-2. **Görev 2 (Task 2): Araç Tespiti, Sayım, Plaka Kırpma ve OCR** (`task2_vehicles.py`, `plate_utils.py`)
-   - Araç sınıflarının tespiti ve takibi
-   - Araç sayımı
-   - Araç plakası lokalizasyonu ve kırpılması (crops)
-   - TR formatına uygun plaka regex doğrulaması ve OCR okuması
+- [x] **Milestone 1: Proje Kurulumu ve Altyapı**
+  - [x] Modüler proje mimarisinin ve dizin yapısının oluşturulması
+  - [x] Bağımlılıkların tanımlanması (`requirements.txt`) ve `plate_utils.py` yardımcı modülü
+  - [x] Git versiyon kontrol altyapısının kurulması
 
-3. **Görselleştirme & Dashboard** (`app.py`)
-   - Streamlit tabanlı interaktif kontrol paneli ve canlı analiz ekranı
+- [x] **Milestone 2: Görev 1 - Kişi Tespiti, Sayım ve Cinsiyet Tahmini (`task1_people.py`)**
+  - [x] YOLO11 (Ultralytics) ile kişilerin tespiti
+  - [x] ByteTrack ve Supervision LineZone entegrasyonu ile hassas giriş/çıkış sayımı
+  - [x] CLIP (Zero-Shot) tabanlı cinsiyet tahmini ve zaman aşımı oylama sistemi
+  - [x] Detaylı veri kayıt altyapısı (CSV log & ROI kişi görselleri kırpma)
+
+- [x] **Milestone 3: Görev 2 - Araç Tespiti, Araç Türü, Plaka Kırpma ve OCR (`task2_vehicles.py`)**
+  - [x] Araç sınıflarının (Otomobil, Motosiklet, Otobüs, Kamyon) tespiti ve takibi
+  - [x] Supervision LineZone ile çift yönlü araç sayımı ve HUD bilgi paneli
+  - [x] YOLO Plaka tespiti ve 4K orijinal kareden yüksek çözünürlüklü plaka kırpma (High-Res Crop)
+  - [x] Hibrit Plaka Regex Doğrulaması (Resmi TR Formatı + AB/Uluslararası Format)
+  - [x] EasyOCR ve çoklu kare oylama (voting) mekanizması
+  - [x] Geçiş loglarının CSV'ye aktarılması ve araç görsellerinin kaydedilmesi (`outputs/crops/`)
+
+- [ ] **Milestone 4: Görselleştirme ve Dashboard (`app.py`)**
+  - [ ] Streamlit interaktif kontrol paneli ve sonuç analiz ekranı
 
 ---
 
-## 🏗️ Proje Mimarisi & Dizin Yapısı
+## 🏗️ Proje Dizin Yapısı
 
 ```
 hackathon/
-├── data/                  # Ham veya test video/görüntü verileri (Git tarafından takip edilmez)
-├── models/                # Eğitilmiş veya indirilen ağırlık dosyaları (.pt, .onnx vb.)
-├── outputs/               # Analiz çıktıları, video ve raporlar
-│   └── crops/             # Kırpılan plaka veya nesne görselleri
+├── data/                  # Ham video verileri
+├── models/                # Eğitilmiş/indirilen model ağırlıkları (.pt)
+├── outputs/               # Çıktı videoları, CSV logları ve araç/kişi görselleri
+│   └── crops/             # Kırpılan plaka ve araç görselleri
 ├── task1_people.py        # Görev 1: Kişi Tespiti, Sayım ve Cinsiyet
 ├── task2_vehicles.py      # Görev 2: Araç Tespiti, Sayım, Plaka Kırpma ve OCR
-├── plate_utils.py         # TR Plaka regex ve ön işleme yardımcı modülleri
+├── plate_utils.py         # TR/AB Plaka regex, görüntü ön işleme ve OCR yardımcıları
 ├── app.py                 # Streamlit analiz dashboard'u
-├── requirements.txt       # Proje bağımlılıkları
-├── README.md              # Proje dokümantasyonu
-└── .gitignore             # Versiyon kontrol kural dosyası
+├── requirements.txt       # Bağımlılık listesi
+└── README.md              # Dokümantasyon
 ```
 
 ---
 
 ## 🚀 Kurulum ve Çalıştırma
 
-### 1. Sanal Ortam Oluşturma ve Aktifleştirme
+### 1. Bağımlılıkların Yüklenmesi
 ```bash
-# Sanal ortam oluşturma
-python -m venv venv
-
-# Windows (PowerShell)
-.\venv\Scripts\Activate.ps1
-
-# Linux / macOS
-source venv/bin/activate
-```
-
-### 2. Bağımlılıkların Yüklenmesi
-```bash
-pip install --upgrade pip
 pip install -r requirements.txt
 ```
 
-### 3. Uygulamayı Başlatma
+### 2. Görev 1 (Kişi Tespiti & Cinsiyet Tahmini)
 ```bash
-streamlit run app.py
+python task1_people.py --video data/kisi_sayimi.mp4
+```
+
+### 3. Görev 2 (Araç Tespiti, Sayım ve Plaka OCR)
+```bash
+python task2_vehicles.py --scenario A
 ```
 
 ---
@@ -77,4 +74,4 @@ streamlit run app.py
 ## ⚠️ Yasal ve Teknik Çekince (Disclaimer)
 
 > [!WARNING]
-> **Önemli Not:** Hackathon kuralları ve etik yapay zeka standartları gereği; **bu model çıktısı yalnızca tahmindir, kesin kimlik doğrulama niteliği taşımaz**. Cinsiyet ve demografik analiz tahminleri istatistiksel çıkarımlara dayanmakta olup hiçbir resmi veya yasal doğruluğu temsil etmez.
+> **Önemli Not:** Hackathon kuralları ve etik yapay zeka standartları gereği; **bu model çıktısı yalnızca tahmindir, kesin kimlik doğrulama niteliği taşımaz**. Cinsiyet ve demografik analiz tahminleri istatistiksel çıkarımlara dayanmaktadır.
