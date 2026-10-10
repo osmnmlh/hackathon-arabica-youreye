@@ -1,0 +1,10 @@
+ultralytics
+supervision
+opencv-python
+easyocr
+transformers
+torchvision
+pillow
+numpy
+pandas
+streamlit

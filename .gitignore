@@ -1,0 +1,36 @@
+# Data directory
+data/
+
+# Video & Media files
+*.mp4
+*.avi
+*.mov
+*.mkv
+
+# Model weights and artifacts
+*.pt
+*.onnx
+*.engine
+*.weights
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Python cache & build
+__pycache__/
+*.pyc
+
+# IDE configs
+.vscode/
+.idea/
+
+# Output files (keep .gitkeep)
+outputs/*.mp4
+outputs/*.csv
+outputs/*.json
+!outputs/.gitkeep
+
+outputs/crops/*
+!outputs/crops/.gitkeep
