@@ -16,15 +16,9 @@ import supervision as sv
 from ultralytics import YOLO
 
 # ---------------------------------------------------------------------------
-# Ön-işleme: Karanlık karelerde kontrast iyileştirme
+# Ön-işleme (Hızlı passthrough, CLAHE kaldırıldı)
 # ---------------------------------------------------------------------------
 def enhance_frame(frame: np.ndarray) -> np.ndarray:
-    lab = cv2.cvtColor(frame, cv2.COLOR_BGR2LAB)
-    l_channel = lab[:, :, 0]
-    if float(l_channel.mean()) < 100:
-        clahe = cv2.createCLAHE(clipLimit=3.0, tileGridSize=(8, 8))
-        lab[:, :, 0] = clahe.apply(l_channel)
-        return cv2.cvtColor(lab, cv2.COLOR_LAB2BGR)
     return frame
 
 # ---------------------------------------------------------------------------
@@ -120,7 +114,7 @@ def draw_hud(
     fps: float, current_frame: int, total_frames: int
 ):
     overlay = frame.copy()
-    hud_w, hud_h = 400, 240
+    hud_w, hud_h = 420, 240
     x0, y0 = 20, 20
     cv2.rectangle(overlay, (x0, y0), (x0 + hud_w, y0 + hud_h), (15, 20, 25), -1)
     cv2.addWeighted(overlay, 0.85, frame, 0.15, 0, frame)
@@ -132,14 +126,14 @@ def draw_hud(
 
     total_count = in_count + out_count
     
-    cv2.putText(frame, f"Aktif Kisi: {active_count}", (x0 + 15, y0 + 75), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (220, 220, 220), 1, cv2.LINE_AA)
-    cv2.putText(frame, f"Tekil Görülen: {total_unique}", (x0 + 200, y0 + 75), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (220, 220, 220), 1, cv2.LINE_AA)
+    cv2.putText(frame, f"Aktif Kisi (Kafe): {active_count}", (x0 + 15, y0 + 75), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (220, 220, 220), 1, cv2.LINE_AA)
+    cv2.putText(frame, f"Tekil Gorulen: {total_unique}", (x0 + 220, y0 + 75), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (220, 220, 220), 1, cv2.LINE_AA)
 
     cv2.putText(frame, f"Giris (IN): {in_count}", (x0 + 15, y0 + 110), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (80, 235, 120), 2, cv2.LINE_AA)
-    cv2.putText(frame, f"Cikis (OUT): {out_count}", (x0 + 200, y0 + 110), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (60, 130, 245), 2, cv2.LINE_AA)
+    cv2.putText(frame, f"Cikis (OUT): {out_count}", (x0 + 220, y0 + 110), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (60, 130, 245), 2, cv2.LINE_AA)
 
     cv2.putText(frame, f"Erkek: {male_count}", (x0 + 15, y0 + 145), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (245, 180, 70), 1, cv2.LINE_AA)
-    cv2.putText(frame, f"Kadin: {female_count}", (x0 + 200, y0 + 145), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (230, 120, 245), 1, cv2.LINE_AA)
+    cv2.putText(frame, f"Kadin: {female_count}", (x0 + 220, y0 + 145), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (230, 120, 245), 1, cv2.LINE_AA)
 
     cv2.putText(frame, f"Toplam Gecis: {total_count}", (x0 + 15, y0 + 180), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2, cv2.LINE_AA)
 
@@ -151,9 +145,9 @@ def draw_hud(
 # ---------------------------------------------------------------------------
 def run_pipeline(
     video_path: str, output_dir: str, model_path: str,
-    max_frames: Optional[int] = None, conf_threshold: float = 0.15,
-    iou_threshold: float = 0.5, device: str = "cpu",
-    line_start_xy: Tuple[int, int] = (828, 185), line_end_xy: Tuple[int, int] = (1060, 185),
+    max_frames: Optional[int] = None, conf_threshold: float = 0.18,
+    iou_threshold: float = 0.45, device: str = "cpu",
+    line_start_xy: Tuple[int, int] = (1120, 185), line_end_xy: Tuple[int, int] = (760, 185),
     enable_gender: bool = True, save_video: bool = True, show_window: bool = False,
 ):
     print("=" * 70)
@@ -183,19 +177,31 @@ def run_pipeline(
     if save_video:
         writer = cv2.VideoWriter(output_video_path, cv2.VideoWriter_fourcc(*"mp4v"), fps, (width, height))
 
-    # LineZone
+    # Kafe Poligon Alanı (Dışarıdaki yayaları filtrelemek için)
+    cafe_polygon = np.array([
+        [0, height],
+        [6, 198],
+        [76, 120],
+        [1478, 60],
+        [1913, 430],
+        [width, 430],
+        [width, height]
+    ], dtype=np.int32)
+    cafe_zone = sv.PolygonZone(polygon=cafe_polygon, triggering_anchors=[sv.Position.CENTER])
+
+    # Genişletilmiş Kapı Hattı (Giriş: IN, Çıkış: OUT)
     line_start, line_end = sv.Point(*line_start_xy), sv.Point(*line_end_xy)
     try:
         line_zone = sv.LineZone(start=line_start, end=line_end, triggering_anchors=[sv.Position.CENTER])
     except Exception:
-        line_zone = sv.LineZone(start=line_start, end=line_end)  # Fallback for different sv versions
+        line_zone = sv.LineZone(start=line_start, end=line_end)
 
     line_annotator = sv.LineZoneAnnotator(thickness=3, color=sv.Color(0, 255, 200), text_thickness=2, text_scale=0.7)
     
-    # Specific color annotators for gender
-    color_male = sv.Color(255, 120, 30)    # Blue for male (BGR->RGB order depending on sv.Color, actually sv.Color is RGB)
-    color_female = sv.Color(200, 30, 255)  # Pink for female
-    color_unk = sv.Color(128, 128, 128)    # Gray for unknown
+    # Cinsiyete Özel Renkler
+    color_male = sv.Color(30, 144, 255)    # Canlı Mavi (Erkek)
+    color_female = sv.Color(255, 105, 180) # Canlı Pembe (Kadın)
+    color_unk = sv.Color(160, 160, 160)    # Gri (Bilinmiyor)
     
     box_annotators = {
         "Erkek": sv.BoxAnnotator(thickness=2, color=color_male),
@@ -216,10 +222,14 @@ def run_pipeline(
     frame_idx = 0
     start_time, last_fps_time = time.time(), time.time()
     calc_fps = fps
-    gender_eval_interval = 8  # Her 8 karede bir analiz
+    gender_eval_interval = 10
+
+    if device == "cuda":
+        torch.backends.cudnn.benchmark = True
+    torch.set_grad_enabled(False)
 
     use_half = (device != "cpu")
-    print(f"[INFO] Video işleniyor (FP16: {use_half})...")
+    print(f"[INFO] Video işleniyor (Cihaz: {device}, FP16: {use_half})...")
     
     while cap.isOpened():
         if max_frames and frame_idx >= max_frames:
@@ -232,28 +242,32 @@ def run_pipeline(
 
         enhanced_frame = enhance_frame(frame)
 
-        # YOLO FP16
+        # YOLO FP16 Inference (960px optimize çözünürlük)
         try:
             results = model.track(
                 enhanced_frame, persist=True, tracker="bytetrack.yaml",
                 conf=conf_threshold, iou=iou_threshold, classes=[0],
-                device=device, verbose=False, imgsz=1280, half=use_half
+                device=device, verbose=False, imgsz=960, half=use_half
             )[0]
         except Exception:
             results = model.track(
                 enhanced_frame, persist=True, tracker="bytetrack.yaml",
                 conf=conf_threshold, iou=iou_threshold, classes=[0],
-                device=device, verbose=False, imgsz=1280
+                device=device, verbose=False, imgsz=960
             )[0]
 
         detections = sv.Detections.from_ultralytics(results)
         if detections.tracker_id is not None:
             valid = detections.tracker_id != None
             detections = detections[valid]
+            # Kafe dışındaki insanları filtrele (Dışarıdaki yayalar ve otopark elenir)
+            if len(detections) > 0:
+                in_cafe_mask = cafe_zone.trigger(detections)
+                detections = detections[in_cafe_mask]
             
         has_tracks = len(detections) > 0
 
-        # Sayım Tetiklemesi
+        # Sayım Tetiklemesi (LineZone)
         if has_tracks:
             try:
                 line_zone.trigger(detections)
@@ -285,10 +299,20 @@ def run_pipeline(
 
                 current_info = track_history[track_id]
 
-                # Cinsiyet değerlendirmesi
-                if gender_estimator and (frame_idx % gender_eval_interval == 0 or len(gender_history[track_id]) == 0):
-                    # Cinsiyet tayini için bacakları/alt gövdeyi atıp, üst gövdeye odaklanıyoruz (Top 70%)
+                # Akıllı CLIP Cinsiyet Değerlendirmesi:
+                # Yeni track'ler için sık (her 10 karede bir), oturmuş kararlı track'ler için seyrek (40 karede bir)
+                history_len = len(gender_history[track_id])
+                need_eval = False
+                if history_len == 0:
+                    need_eval = True
+                elif history_len < 5 and (frame_idx % gender_eval_interval == 0):
+                    need_eval = True
+                elif history_len >= 5 and (frame_idx % 40 == 0):
+                    need_eval = True
+
+                if gender_estimator and need_eval:
                     h_c, w_c = crop.shape[:2]
+                    # Üst gövdeye odaklan (Top 70%)
                     upper_body = crop[:int(h_c * 0.70), :] if h_c > 30 else crop
                     pred, g_conf = gender_estimator.predict(upper_body)
                     if pred != "Bilinmiyor":
@@ -304,10 +328,10 @@ def run_pipeline(
                     
                     if male_votes > female_votes:
                         current_info["gender"] = "Erkek"
-                        current_info["gender_conf"] = float(np.mean([confs[i] for i, v in enumerate(votes) if v == "Erkek"]))
+                        current_info["gender_conf"] = float(np.mean([confs[j] for j, v in enumerate(votes) if v == "Erkek"]))
                     else:
                         current_info["gender"] = "Kadin"
-                        current_info["gender_conf"] = float(np.mean([confs[i] for i, v in enumerate(votes) if v == "Kadin"]))
+                        current_info["gender_conf"] = float(np.mean([confs[j] for j, v in enumerate(votes) if v == "Kadin"]))
 
                 g_str, g_conf = current_info["gender"], current_info["gender_conf"]
                 if g_str != "Bilinmiyor":
@@ -318,10 +342,11 @@ def run_pipeline(
         # Görselleştirme ve Kafe Sınırları
         annotated = frame.copy()
         
-        # Kafe sınırlarını çiz
-        cv2.line(annotated, (76, 120), (6, 198), (0, 0, 255), 2)
-        cv2.line(annotated, (60, 111), (1478, 60), (0, 0, 255), 2)
-        cv2.line(annotated, (1481, 68), (1913, 430), (0, 0, 255), 2)
+        # Kafe sınırlarını ince şık kırmızı çizgiyle çiz
+        cv2.line(annotated, (76, 120), (6, 198), (0, 0, 240), 2)
+        cv2.line(annotated, (76, 120), (1478, 60), (0, 0, 240), 2)
+        cv2.line(annotated, (1481, 68), (1913, 430), (0, 0, 240), 2)
+        cv2.putText(annotated, "Kafe Siniri", (140, 100), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 240), 1, cv2.LINE_AA)
 
         if len(detections) > 0:
             g_indices = {"Erkek": [], "Kadin": [], "Bilinmiyor": []}
@@ -389,11 +414,11 @@ def main():
     parser.add_argument("--output_dir", type=str, default="outputs/task1_outputs/task1_kisi_sayimi-rev1.2", help="Çıktı klasörü")
     parser.add_argument("--model", type=str, default="models/yolov8m.pt", help="YOLO modeli")
     parser.add_argument("--max_frames", type=int, default=None, help="Maksimum işlenecek kare")
-    parser.add_argument("--conf", type=float, default=0.15, help="Tespit güven eşiği")
-    parser.add_argument("--iou", type=float, default=0.4, help="NMS IoU eşiği")
+    parser.add_argument("--conf", type=float, default=0.18, help="Tespit güven eşiği")
+    parser.add_argument("--iou", type=float, default=0.45, help="NMS IoU eşiği")
     parser.add_argument("--device", type=str, default="cuda" if torch.cuda.is_available() else "cpu", help="Cihaz (cuda/cpu)")
-    parser.add_argument("--line_start", type=int, nargs=2, default=[828, 185], help="Çizgi başı (x y)")
-    parser.add_argument("--line_end", type=int, nargs=2, default=[1060, 185], help="Çizgi sonu (x y)")
+    parser.add_argument("--line_start", type=int, nargs=2, default=[1120, 185], help="Çizgi başı (x y)")
+    parser.add_argument("--line_end", type=int, nargs=2, default=[760, 185], help="Çizgi sonu (x y)")
     parser.add_argument("--no_gender", action="store_true", help="Cinsiyeti devre dışı bırak")
     parser.add_argument("--no_video", action="store_true", help="Videoyu kaydetme")
     parser.add_argument("--show", action="store_true", help="Önizlemeyi göster")
@@ -409,3 +434,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
