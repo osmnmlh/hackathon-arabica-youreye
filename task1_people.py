@@ -36,21 +36,23 @@ class GenderEstimator:
         self.model = None
         self.processor = None
         self.male_prompts = [
-            "a photo of a man",
-            "a photo of a man walking",
-            "a photo of a man with his back turned",
-            "a photo of a bald man",
-            "a photo of a man sitting and looking at a computer",
-            "a photo of a man standing sideways from behind",
-            "a photo of a man with short hair",
-            "a photo of a man with broad shoulders",
+            "a photo of a male pedestrian",
+            "a man",
+            "a man with short hair",
+            "a photo of a man's face and upper body",
+            "a male body shape",
+            "a guy walking",
+            "a male customer",
         ]
         self.female_prompts = [
-            "a photo of a woman",
-            "a photo of a woman walking",
-            "a photo of a woman with long hair",
-            "a photo of a woman wearing a headscarf",
-            "a photo of a woman wearing a hijab",
+            "a photo of a female pedestrian",
+            "a woman",
+            "a woman with long hair",
+            "a photo of a woman's face and upper body",
+            "a female body shape",
+            "a woman wearing a headscarf or hijab",
+            "a lady walking",
+            "a female customer",
         ]
         self.prompts = self.male_prompts + self.female_prompts
         self.text_inputs = None
@@ -285,7 +287,10 @@ def run_pipeline(
 
                 # Cinsiyet değerlendirmesi
                 if gender_estimator and (frame_idx % gender_eval_interval == 0 or len(gender_history[track_id]) == 0):
-                    pred, g_conf = gender_estimator.predict(crop)
+                    # Cinsiyet tayini için bacakları/alt gövdeyi atıp, üst gövdeye odaklanıyoruz (Top 70%)
+                    h_c, w_c = crop.shape[:2]
+                    upper_body = crop[:int(h_c * 0.70), :] if h_c > 30 else crop
+                    pred, g_conf = gender_estimator.predict(upper_body)
                     if pred != "Bilinmiyor":
                         gender_history[track_id].append((pred, g_conf))
                 
