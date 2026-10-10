@@ -682,7 +682,7 @@ def main():
     parser.add_argument(
         "--video",
         type=str,
-        default="data/4K Road traffic video for object detection and tracking - free download now!.mp4",
+        default="data/traffic_1080p.mp4",
         help="Girdi video dosyası yolu"
     )
     parser.add_argument(
