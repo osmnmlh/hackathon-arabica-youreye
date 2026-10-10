@@ -28,24 +28,26 @@ class GenderEstimator:
     def __init__(self, device: str = "cpu"):
         self.device = device
         self.male_prompts = [
+            "a photo of a man with short hair",
+            "a photo of a man sitting at a desk or laptop",
+            "a photo of a man seen from behind with short hair",
+            "a photo of a man sitting down",
             "a photo of a male pedestrian",
             "a photo of a man",
-            "a man with short hair",
             "a photo of a man's face and upper body",
             "a male body shape",
-            "a man sitting at a table with a laptop",
-            "a man seen from behind with short hair",
-            "a male customer sitting down",
+            "a male customer",
         ]
         self.female_prompts = [
+            "a photo of a woman wearing a headscarf",
+            "a photo of a woman wearing a hijab",
+            "a photo of a veiled woman",
+            "a photo of a woman with long hair",
+            "a photo of a woman with long blonde hair",
+            "a photo of a woman seen from behind",
+            "a photo of a woman sitting down",
             "a photo of a female pedestrian",
-            "a photo of a woman",
-            "a woman with long hair",
-            "a photo of a woman's face and upper body",
-            "a female body shape",
-            "a woman sitting at a table with long blonde hair",
-            "a woman seen from behind with long hair",
-            "a female customer sitting down",
+            "a female customer",
         ]
         self.prompts = self.male_prompts + self.female_prompts
         self.text_inputs = None
@@ -150,7 +152,7 @@ def run_pipeline(
     enable_gender: bool = True, save_video: bool = True, show_window: bool = False,
 ):
     print("=" * 70)
-    print("Arabica x Youreye - Görev 1: Kişi Tespiti & Sayım (Rev 1.2)")
+    print("Arabica x Youreye - Görev 1: Kişi Tespiti & Sayım (Final)")
     print("=" * 70)
 
     if not os.path.exists(video_path):
@@ -188,10 +190,10 @@ def run_pipeline(
     ], dtype=np.int32)
     cafe_zone = sv.PolygonZone(polygon=cafe_polygon, triggering_anchors=[sv.Position.CENTER])
 
-    # İnce Ayarlı Kapı Hattı (Sağda oturan adama değmez: 1060, soldan geçenleri kaçırmaz: 725)
+    # İnce Ayarlı Kapı Hattı: Ayak / Alt Bölgesi Geçiş Mantığı (sv.Position.BOTTOM_CENTER)
     line_start, line_end = sv.Point(*line_start_xy), sv.Point(*line_end_xy)
     try:
-        line_zone = sv.LineZone(start=line_start, end=line_end, triggering_anchors=[sv.Position.CENTER])
+        line_zone = sv.LineZone(start=line_start, end=line_end, triggering_anchors=[sv.Position.BOTTOM_CENTER])
     except Exception:
         line_zone = sv.LineZone(start=line_start, end=line_end)
 
@@ -267,7 +269,7 @@ def run_pipeline(
                 
             has_tracks = len(detections) > 0
 
-            # Sayım Tetiklemesi (LineZone)
+            # Sayım Tetiklemesi (LineZone - Ayak / Alt Bölgesi)
             if has_tracks:
                 try:
                     line_zone.trigger(detections)
@@ -410,7 +412,24 @@ def run_pipeline(
         df = pd.DataFrame(list(track_history.values()))
         df.to_csv(csv_output_path, index=False, encoding="utf-8-sig")
         print(f"[SONUÇ] CSV raporu: {csv_output_path}")
+        
     if save_video and os.path.exists(output_video_path):
+        # Video H.264 optimizasyonu (GitHub 100MB limiti ve web uyumluluğu için)
+        try:
+            import subprocess, imageio_ffmpeg
+            ffmpeg_exe = imageio_ffmpeg.get_ffmpeg_exe()
+            temp_compressed = os.path.join(output_dir, "temp_h264.mp4")
+            cmd = [
+                ffmpeg_exe, "-y", "-i", output_video_path,
+                "-c:v", "libx264", "-crf", "23", "-preset", "fast",
+                "-pix_fmt", "yuv420p", temp_compressed
+            ]
+            subprocess.run(cmd, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            if os.path.exists(temp_compressed) and os.path.getsize(temp_compressed) > 0:
+                os.replace(temp_compressed, output_video_path)
+                print(f"[INFO] Video H.264 formatına optimize edildi ({os.path.getsize(output_video_path)/(1024*1024):.1f} MB).")
+        except Exception as e:
+            print(f"[UYARI] H.264 optimizasyonu uygulanamadı ({e}).")
         print(f"[SONUÇ] Çıktı videosu: {output_video_path}")
     print("=" * 70)
 
@@ -418,7 +437,7 @@ def run_pipeline(
 def main():
     parser = argparse.ArgumentParser(description="Task 1: Kişi Sayımı ve Cinsiyet Sınıflandırma", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument("--video", type=str, default="data/kisi_sayimi.mp4", help="Girdi video yolu")
-    parser.add_argument("--output_dir", type=str, default="outputs/task1_outputs/task1_kisi_sayimi-rev1.2", help="Çıktı klasörü")
+    parser.add_argument("--output_dir", type=str, default="outputs/task1_output_final", help="Çıktı klasörü")
     parser.add_argument("--model", type=str, default="models/yolov8m.pt", help="YOLO modeli")
     parser.add_argument("--max_frames", type=int, default=None, help="Maksimum işlenecek kare")
     parser.add_argument("--conf", type=float, default=0.12, help="Tespit güven eşiği")

@@ -31,9 +31,16 @@ outputs/*.mp4
 outputs/*.csv
 outputs/*.json
 outputs/*.jpg
+outputs/task1_outputs/
 outputs/task1_kisi_sayimi*/
 outputs/task2_arac_sayimi*/
 !outputs/.gitkeep
+
+# Task 1: Sadece son final çıktılarının versiyonlanması
+!outputs/task1_output_final/
+!outputs/task1_output_final/*
+!outputs/task1_output_final/*.mp4
+!outputs/task1_output_final/*.csv
 
 outputs/crops/*
 !outputs/crops/.gitkeep
